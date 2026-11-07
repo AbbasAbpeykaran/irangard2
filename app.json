@@ -44,6 +44,22 @@
       "backgroundColor": "#F5F3EC",
       "image": "./assets/images/splash-icon.png",
       "imageWidth": 76
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "04da50a1-08c4-4f42-8396-115ea8e9f5b9"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/04da50a1-08c4-4f42-8396-115ea8e9f5b9"
     }
   }
 }
