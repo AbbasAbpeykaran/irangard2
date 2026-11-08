@@ -1,5 +1,4 @@
-﻿cd /d "%~dp0"
-@echo off
+﻿@echo off
 chcp 65001 >nul
 title IranGard APK Builder
 echo ========================================

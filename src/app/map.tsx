@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMemo, useState } from 'react';
 import { cities } from '../data/cities';
 import provincesData from '../data/provinces.json';
-import { cityPercent, toPersianDigits, useVisited } from '../lib/visited';
+import { toPersianDigits, useVisited } from '../lib/visited';
 
 type ProvinceShape = {
   code: string;
@@ -26,6 +26,39 @@ type ProvinceShape = {
 type MapLayout = { width: number; height: number };
 
 const provinces = provincesData as unknown as ProvinceShape[];
+const provinceMasks: Record<string, number> = {
+  'IR-01': require('../../assets/images/province-masks/IR-01.png'),
+  'IR-02': require('../../assets/images/province-masks/IR-02.png'),
+  'IR-03': require('../../assets/images/province-masks/IR-03.png'),
+  'IR-04': require('../../assets/images/province-masks/IR-04.png'),
+  'IR-05': require('../../assets/images/province-masks/IR-05.png'),
+  'IR-06': require('../../assets/images/province-masks/IR-06.png'),
+  'IR-07': require('../../assets/images/province-masks/IR-07.png'),
+  'IR-08': require('../../assets/images/province-masks/IR-08.png'),
+  'IR-09': require('../../assets/images/province-masks/IR-09.png'),
+  'IR-10': require('../../assets/images/province-masks/IR-10.png'),
+  'IR-11': require('../../assets/images/province-masks/IR-11.png'),
+  'IR-12': require('../../assets/images/province-masks/IR-12.png'),
+  'IR-13': require('../../assets/images/province-masks/IR-13.png'),
+  'IR-14': require('../../assets/images/province-masks/IR-14.png'),
+  'IR-15': require('../../assets/images/province-masks/IR-15.png'),
+  'IR-16': require('../../assets/images/province-masks/IR-16.png'),
+  'IR-17': require('../../assets/images/province-masks/IR-17.png'),
+  'IR-18': require('../../assets/images/province-masks/IR-18.png'),
+  'IR-19': require('../../assets/images/province-masks/IR-19.png'),
+  'IR-20': require('../../assets/images/province-masks/IR-20.png'),
+  'IR-21': require('../../assets/images/province-masks/IR-21.png'),
+  'IR-22': require('../../assets/images/province-masks/IR-22.png'),
+  'IR-23': require('../../assets/images/province-masks/IR-23.png'),
+  'IR-24': require('../../assets/images/province-masks/IR-24.png'),
+  'IR-25': require('../../assets/images/province-masks/IR-25.png'),
+  'IR-26': require('../../assets/images/province-masks/IR-26.png'),
+  'IR-27': require('../../assets/images/province-masks/IR-27.png'),
+  'IR-28': require('../../assets/images/province-masks/IR-28.png'),
+  'IR-29': require('../../assets/images/province-masks/IR-29.png'),
+  'IR-30': require('../../assets/images/province-masks/IR-30.png'),
+  'IR-31': require('../../assets/images/province-masks/IR-31.png'),
+};
 const MAP_WIDTH = 1200;
 const MAP_HEIGHT = 900;
 // These bounds and plot margins match assets/images/iran-atlas-offline.png.
@@ -96,6 +129,24 @@ function provinceCenter(province: ProvinceShape) {
   };
 }
 
+function provincePercent(provinceCode: string, visited: string[]): number {
+  const attractions = cities
+    .filter((city) => city.provinceCode === provinceCode)
+    .flatMap((city) => city.attractions);
+  if (attractions.length === 0) return 0;
+  const done = attractions.filter((place) => visited.includes(place.id)).length;
+  return Math.round((done / attractions.length) * 100);
+}
+
+function provinceTint(percent: number): string {
+  const start = { r: 211, g: 214, b: 211 };
+  const end = { r: 35, g: 119, b: 87 };
+  const amount = Math.max(0, Math.min(100, percent)) / 100;
+  const channel = (a: number, b: number) => Math.round(a + (b - a) * amount);
+  return `#${[channel(start.r, end.r), channel(start.g, end.g), channel(start.b, end.b)]
+    .map((value) => value.toString(16).padStart(2, '0')).join('')}`;
+}
+
 export default function MapScreen() {
   const router = useRouter();
   const { visited } = useVisited();
@@ -111,22 +162,49 @@ export default function MapScreen() {
   const selectedCity = cities.find((city) => city.provinceCode === selectedProvince.code);
   const selectedCenter = provinceCenter(selectedProvince);
   const markerPosition = projectPoint(selectedCenter.latitude, selectedCenter.longitude);
-  const selectedPercent = selectedCity ? cityPercent(selectedCity, visited) : 0;
-  const visitedAttractions = selectedCity
-    ? selectedCity.attractions.filter((place) => visited.includes(place.id)).length
-    : 0;
+  const selectedAttractions = cities
+    .filter((city) => city.provinceCode === selectedProvince.code)
+    .flatMap((city) => city.attractions);
+  const selectedPercent = provincePercent(selectedProvince.code, visited);
+  const visitedAttractions = selectedAttractions.filter((place) => visited.includes(place.id)).length;
 
-  const filteredProvinces = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase();
-    if (!normalized) return provinces;
-    return provinces.filter((province) => {
-      const city = cities.find((item) => item.provinceCode === province.code);
-      return (
-        province.name.toLocaleLowerCase().includes(normalized) ||
-        province.nameEn.toLocaleLowerCase().includes(normalized) ||
-        !!city?.name.toLocaleLowerCase().includes(normalized)
-      );
-    });
+  const searchResults = useMemo(() => {
+    const normalize = (value: string) => value
+      .toLocaleLowerCase()
+      .replace(/[ي]/g, 'ی')
+      .replace(/[ك]/g, 'ک')
+      .replace(/[ۀة]/g, 'ه')
+      .replace(/[‌\s]+/g, ' ')
+      .trim();
+    const normalized = normalize(query);
+    if (!normalized) return [] as Array<
+      | { kind: 'province'; id: string; title: string; subtitle: string; code: string }
+      | { kind: 'city'; id: string; title: string; subtitle: string; code: string }
+      | { kind: 'attraction'; id: string; title: string; subtitle: string; cityId: string; code: string }
+    >;
+
+    const results: Array<
+      | { kind: 'province'; id: string; title: string; subtitle: string; code: string }
+      | { kind: 'city'; id: string; title: string; subtitle: string; code: string }
+      | { kind: 'attraction'; id: string; title: string; subtitle: string; cityId: string; code: string }
+    > = [];
+    for (const province of provinces) {
+      if (normalize(province.name).includes(normalized) || normalize(province.nameEn).includes(normalized)) {
+        results.push({ kind: 'province', id: province.code, title: province.name, subtitle: 'استان', code: province.code });
+      }
+    }
+    for (const city of cities) {
+      const province = provinces.find((item) => item.code === city.provinceCode);
+      if (normalize(city.name).includes(normalized)) {
+        results.push({ kind: 'city', id: city.id, title: city.name, subtitle: `شهر • ${province?.name ?? ''}`, code: city.provinceCode });
+      }
+      for (const place of city.attractions) {
+        if (normalize(place.name).includes(normalized) || normalize(place.description).includes(normalized) || (place.tags ?? []).some((tag) => normalize(tag).includes(normalized))) {
+          results.push({ kind: 'attraction', id: place.id, title: place.name, subtitle: `جاذبه • ${city.name}`, cityId: city.id, code: city.provinceCode });
+        }
+      }
+    }
+    return results.slice(0, 12);
   }, [query]);
 
   const selectProvince = (province: ProvinceShape) => setSelectedCode(province.code);
@@ -164,7 +242,7 @@ export default function MapScreen() {
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <Stack.Screen
         options={{
-          title: 'اطلس رنگی ایران',
+          title: 'اطلس پیشرفت ایران',
           headerShown: true,
           headerStyle: { backgroundColor: palette.background },
           headerTintColor: palette.ink,
@@ -207,6 +285,36 @@ export default function MapScreen() {
           )}
         </View>
 
+        {!!query.trim() && (
+          <View style={styles.searchResults}>
+            <Text style={styles.searchResultsTitle}>نتیجه جست‌وجو • استان، شهر و جاذبه</Text>
+            {searchResults.length ? searchResults.map((result) => (
+              <Pressable
+                key={`${result.kind}-${result.id}`}
+                onPress={() => {
+                  if (result.kind === 'attraction' || result.kind === 'city') {
+                    setSelectedCode(result.code);
+                    router.push(`/city/${result.kind === 'attraction' ? result.cityId : result.id}`);
+                  } else {
+                    setSelectedCode(result.code);
+                  }
+                  setQuery('');
+                }}
+                style={({ pressed }) => [styles.searchResultItem, pressed && styles.pressed]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.searchResultArrow}>←</Text>
+                <View style={styles.searchResultCopy}>
+                  <Text style={styles.searchResultName}>{result.title}</Text>
+                  <Text style={styles.searchResultSubtitle}>{result.subtitle}</Text>
+                </View>
+              </Pressable>
+            )) : (
+              <Text style={styles.searchResultsEmpty}>موردی با این نام در راهنماهای فعلی پیدا نشد.</Text>
+            )}
+          </View>
+        )}
+
         <View style={styles.mapFrame}>
           <Pressable
             style={styles.mapPressable}
@@ -221,11 +329,21 @@ export default function MapScreen() {
             accessibilityLabel="نقشه تعاملی آفلاین ایران؛ برای انتخاب استان روی نقشه لمس کنید"
           >
             <Image
-              source={require('../../assets/images/iran-atlas-offline.png')}
+              source={require('../../assets/images/iran-atlas-grayscale.png')}
               style={styles.mapImage}
               resizeMode="stretch"
               accessibilityIgnoresInvertColors
             />
+            {provinces.map((province) => (
+              <Image
+                key={province.code}
+                source={provinceMasks[province.code]}
+                style={[styles.provinceOverlay, { tintColor: provinceTint(provincePercent(province.code, visited)) }]}
+                resizeMode="stretch"
+                fadeDuration={0}
+                accessible={false}
+              />
+            ))}
             <View
               pointerEvents="none"
               style={[
@@ -237,8 +355,19 @@ export default function MapScreen() {
             </View>
           </Pressable>
           <View style={styles.mapCaption} pointerEvents="none">
-            <Text style={styles.mapCaptionText}>برای انتخاب استان، نقشه را لمس کن</Text>
+            <Text style={styles.mapCaptionText}>رنگ هر استان بر اساس درصد بازدید توست</Text>
             <Text style={styles.mapCaptionSpark}>✦</Text>
+          </View>
+        </View>
+
+        <View style={styles.mapLegend}>
+          <Text style={styles.legendTitle}>میزان بازدید استان‌ها</Text>
+          <View style={styles.legendScale}>
+            <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: '#D3D6D3' }]} /><Text style={styles.legendText}>۰٪</Text></View>
+            <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: '#A4BDB1' }]} /><Text style={styles.legendText}>۲۵٪</Text></View>
+            <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: '#759F8B' }]} /><Text style={styles.legendText}>۵۰٪</Text></View>
+            <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: '#4D896D' }]} /><Text style={styles.legendText}>۷۵٪</Text></View>
+            <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: '#237757' }]} /><Text style={styles.legendText}>۱۰۰٪</Text></View>
           </View>
         </View>
 
@@ -249,7 +378,7 @@ export default function MapScreen() {
               <Text style={styles.selectedName}>{selectedProvince.name}</Text>
               <Text style={styles.selectedMeta}>
                 {selectedCity
-                  ? `${toPersianDigits(selectedCity.attractions.length)} جاذبه در راهنمای فعلی`
+                  ? `${toPersianDigits(selectedAttractions.length)} جاذبه در راهنمای فعلی`
                   : 'راهنمای گردشگری در حال تکمیل'}
               </Text>
             </View>
@@ -260,7 +389,7 @@ export default function MapScreen() {
             </View>
           </View>
 
-          {selectedCity ? (
+          {selectedAttractions.length > 0 ? (
             <View style={styles.selectedProgressArea}>
               <View style={styles.selectedProgressTop}>
                 <Text style={styles.selectedProgressLabel}>ردپای سفر تو</Text>
@@ -270,7 +399,7 @@ export default function MapScreen() {
                 <View style={[styles.progressFill, { width: `${selectedPercent}%` }]} />
               </View>
               <Text style={styles.selectedProgressHint}>
-                {toPersianDigits(visitedAttractions)} از {toPersianDigits(selectedCity.attractions.length)} جاذبه بازدیدشده
+                {toPersianDigits(visitedAttractions)} از {toPersianDigits(selectedAttractions.length)} جاذبه بازدیدشده
               </Text>
             </View>
           ) : null}
@@ -287,47 +416,42 @@ export default function MapScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.sectionHeading}>
-          <View>
-            <Text style={styles.sectionTitle}>استان‌ها را پیدا کن</Text>
-            <Text style={styles.sectionSubtitle}>
-              {toPersianDigits(filteredProvinces.length)} استان در فهرست
-            </Text>
-          </View>
-          <Text style={styles.sectionHint}>انتخاب سریع</Text>
-        </View>
+        {!query.trim() && (
+          <>
+            <View style={styles.sectionHeading}>
+              <View>
+                <Text style={styles.sectionTitle}>استان‌ها را پیدا کن</Text>
+                <Text style={styles.sectionSubtitle}>۳۱ استان در فهرست</Text>
+              </View>
+              <Text style={styles.sectionHint}>انتخاب سریع</Text>
+            </View>
 
-        {filteredProvinces.length ? (
-          <View style={styles.provinceGrid}>
-            {filteredProvinces.map((province) => {
-              const isSelected = province.code === selectedCode;
-              const hasGuide = readyCodes.has(province.code);
-              return (
-                <Pressable
-                  key={province.code}
-                  onPress={() => selectProvince(province)}
-                  style={({ pressed }) => [
-                    styles.provinceChip,
-                    isSelected && styles.provinceChipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={`${province.name}${hasGuide ? '، راهنمای آماده' : '، راهنمای در حال تکمیل'}`}
-                >
-                  <View style={[styles.provinceDot, hasGuide && styles.provinceDotReady]} />
-                  <Text style={[styles.provinceChipText, isSelected && styles.provinceChipTextSelected]}>
-                    {province.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateTitle}>استانی پیدا نشد</Text>
-            <Text style={styles.emptyStateText}>نام استان یا شهر را دوباره بررسی کن.</Text>
-          </View>
+            <View style={styles.provinceGrid}>
+              {provinces.map((province) => {
+                const isSelected = province.code === selectedCode;
+                const hasGuide = readyCodes.has(province.code);
+                return (
+                  <Pressable
+                    key={province.code}
+                    onPress={() => selectProvince(province)}
+                    style={({ pressed }) => [
+                      styles.provinceChip,
+                      isSelected && styles.provinceChipSelected,
+                      pressed && styles.pressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    accessibilityLabel={`${province.name}${hasGuide ? '، راهنمای آماده' : '، راهنمای در حال تکمیل'}`}
+                  >
+                    <View style={[styles.provinceDot, hasGuide && styles.provinceDotReady]} />
+                    <Text style={[styles.provinceChipText, isSelected && styles.provinceChipTextSelected]}>
+                      {province.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
         )}
 
         <View style={styles.offlineNote}>
@@ -368,12 +492,34 @@ const styles = StyleSheet.create({
   searchIcon: { color: palette.forestLight, fontSize: 25, lineHeight: 28 },
   searchInput: { flex: 1, color: palette.ink, fontSize: 13, paddingVertical: 9 },
   clearSearch: { color: palette.muted, fontSize: 23, paddingHorizontal: 2 },
+  searchResults: {
+    backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1,
+    borderColor: palette.line, padding: 10, gap: 6,
+  },
+  searchResultsTitle: { color: palette.muted, fontSize: 10, fontWeight: '900', textAlign: 'right' },
+  searchResultItem: {
+    minHeight: 38, flexDirection: 'row-reverse', alignItems: 'center',
+    justifyContent: 'space-between', paddingHorizontal: 10, borderRadius: 10,
+    backgroundColor: '#F5F7F3',
+  },
+  searchResultCopy: { flex: 1, alignItems: 'flex-end', gap: 2 },
+  searchResultName: { color: palette.ink, fontSize: 12, fontWeight: '800', textAlign: 'right' },
+  searchResultSubtitle: { color: palette.muted, fontSize: 10, textAlign: 'right' },
+  searchResultArrow: { color: palette.forestLight, fontSize: 16 },
+  searchResultsEmpty: { color: palette.muted, fontSize: 11, textAlign: 'right', paddingVertical: 8 },
   mapFrame: {
     width: '100%', aspectRatio: 4 / 3, borderRadius: 22, overflow: 'hidden',
     backgroundColor: '#EEE9DB', borderWidth: 1, borderColor: '#E8E0CF',
   },
   mapPressable: { flex: 1 },
   mapImage: { width: '100%', height: '100%' },
+  provinceOverlay: { position: 'absolute', width: '100%', height: '100%', opacity: 0.92 },
+  mapLegend: { backgroundColor: '#FFFCF5', borderRadius: 14, borderWidth: 1, borderColor: palette.line, padding: 11, gap: 8 },
+  legendTitle: { color: palette.ink, fontSize: 10, fontWeight: '900', textAlign: 'right' },
+  legendScale: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
+  legendItem: { alignItems: 'center', gap: 4 },
+  legendSwatch: { width: 27, height: 9, borderRadius: 5 },
+  legendText: { color: palette.muted, fontSize: 9, fontWeight: '700' },
   selectedMarker: {
     position: 'absolute', width: 22, height: 22, marginLeft: -11, marginTop: -11,
     borderRadius: 11, backgroundColor: 'rgba(255,252,245,0.86)',

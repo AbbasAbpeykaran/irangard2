@@ -126,7 +126,7 @@ function PlaceCard({
 export default function CityScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { visited, toggle } = useVisited();
-  const [area, setArea] = useState<AttractionArea>('shiraz');
+  const [area, setArea] = useState<AttractionArea>(id === 'tehran' ? 'tehran-city' : 'shiraz');
   const [category, setCategory] = useState<AttractionCategory | 'all'>('all');
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -138,7 +138,9 @@ export default function CityScreen() {
   const allAttractions = city?.attractions ?? [];
   const shirazAttractions = allAttractions.filter((place) => place.area === 'shiraz');
   const farsAttractions = allAttractions.filter((place) => place.area === 'fars');
-  const activePlaces = area === 'shiraz' ? shirazAttractions : farsAttractions;
+  const tehranCityAttractions = allAttractions.filter((place) => place.area === 'tehran-city');
+  const tehranProvinceAttractions = allAttractions.filter((place) => place.area === 'tehran-province');
+  const activePlaces = area === 'tehran-city' ? tehranCityAttractions : area === 'tehran-province' ? tehranProvinceAttractions : area === 'shiraz' ? shirazAttractions : farsAttractions;
 
   const filteredPlaces = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
@@ -173,7 +175,7 @@ export default function CityScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <Stack.Screen options={{ title: 'راهنمای فارس', headerShown: false }} />
+      <Stack.Screen options={{ title: city.name === 'تهران' ? 'راهنمای تهران' : 'راهنمای فارس', headerShown: false }} />
       <StatusBar barStyle="dark-content" />
       <ScrollView
         contentContainerStyle={styles.container}
@@ -183,7 +185,7 @@ export default function CityScreen() {
         <View style={styles.topBar}>
           <View>
             <Text style={styles.brandKicker}>ایرانگرد • راهنمای سفر</Text>
-            <Text style={styles.screenTitle}>فارس و شیراز</Text>
+            <Text style={styles.screenTitle}>{city.name === 'تهران' ? 'استان تهران' : 'فارس و شیراز'}</Text>
           </View>
           <View style={styles.brandStamp}><Text style={styles.brandStampText}>✦</Text></View>
         </View>
@@ -193,8 +195,8 @@ export default function CityScreen() {
           <View style={styles.heroDecorTwo} />
           <View style={styles.heroCopy}>
             <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>راهنمای آفلاین</Text></View>
-            <Text style={styles.heroTitle}>از عطر بهارنارنج تا شکوه پارسه</Text>
-            <Text style={styles.heroSubtitle}>شیراز را کشف کن؛ بعد قدم به دل تاریخ و طبیعت فارس بگذار.</Text>
+            <Text style={styles.heroTitle}>{city.name === 'تهران' ? 'از شکوه تاریخ تا دامنه‌های البرز' : 'از عطر بهارنارنج تا شکوه پارسه'}</Text>
+            <Text style={styles.heroSubtitle}>{city.name === 'تهران' ? 'تهران را از کاخ‌ها و موزه‌ها تا روستاها و طبیعت کوهستانی کشف کن.' : 'شیراز را کشف کن؛ بعد قدم به دل تاریخ و طبیعت فارس بگذار.'}</Text>
           </View>
           <View style={styles.heroStats}>
             <View style={styles.heroStat}>
@@ -219,7 +221,7 @@ export default function CityScreen() {
             <View style={styles.progressPercent}><Text style={styles.progressPercentText}>{toPersianDigits(percent)}٪</Text></View>
             <View style={styles.progressCopy}>
               <Text style={styles.progressTitle}>گذرنامه گردشگری تو</Text>
-              <Text style={styles.progressSubtitle}>هر بازدید را ثبت کن و ردپایت را در فارس بساز.</Text>
+              <Text style={styles.progressSubtitle}>{city.name === 'تهران' ? 'هر بازدید را ثبت کن و ردپایت را در استان تهران بساز.' : 'هر بازدید را ثبت کن و ردپایت را در فارس بساز.'}</Text>
             </View>
           </View>
           <ProgressBar percent={percent} color={palette.forestLight} height={8} />
@@ -229,30 +231,43 @@ export default function CityScreen() {
         <View style={styles.sectionHeading}>
           <View>
             <Text style={styles.sectionTitle}>از کجا شروع کنیم؟</Text>
-            <Text style={styles.sectionSubtitle}>محدوده گردش خودت را انتخاب کن.</Text>
+            <Text style={styles.sectionSubtitle}>{city.name === 'تهران' ? 'بین دیدنی‌های شهر و دیگر شهرستان‌های استان انتخاب کن.' : 'محدوده گردش خودت را انتخاب کن.'}</Text>
           </View>
           <Text style={styles.sectionIcon}>🧭</Text>
         </View>
 
         <View style={styles.areaTabs}>
-          <Pressable onPress={() => { setArea('shiraz'); setCategory('all'); setQuery(''); setExpandedId(null); setShowAllPlaces(false); }} style={[styles.areaTab, area === 'shiraz' && styles.areaTabActive]}>
-            <Text style={[styles.areaTabTitle, area === 'shiraz' && styles.areaTabTitleActive]}>شیراز</Text>
-            <Text style={[styles.areaTabSub, area === 'shiraz' && styles.areaTabSubActive]}>{toPersianDigits(shirazAttractions.length)} جاذبه شهری</Text>
-          </Pressable>
-          <Pressable onPress={() => { setArea('fars'); setCategory('all'); setQuery(''); setExpandedId(null); setShowAllPlaces(false); }} style={[styles.areaTab, area === 'fars' && styles.areaTabActive]}>
-            <Text style={[styles.areaTabTitle, area === 'fars' && styles.areaTabTitleActive]}>سراسر استان فارس</Text>
-            <Text style={[styles.areaTabSub, area === 'fars' && styles.areaTabSubActive]}>{toPersianDigits(farsAttractions.length)} مقصد خارج شهر</Text>
-          </Pressable>
+          {city.name === 'تهران' ? (
+            <>
+              <Pressable onPress={() => { setArea('tehran-city'); setCategory('all'); setQuery(''); setExpandedId(null); setShowAllPlaces(false); }} style={[styles.areaTab, area === 'tehran-city' && styles.areaTabActive]}>
+                <Text style={[styles.areaTabTitle, area === 'tehran-city' && styles.areaTabTitleActive]}>شهر تهران</Text>
+                <Text style={[styles.areaTabSub, area === 'tehran-city' && styles.areaTabSubActive]}>{toPersianDigits(tehranCityAttractions.length)} جاذبه شهری</Text>
+              </Pressable>
+              <Pressable onPress={() => { setArea('tehran-province'); setCategory('all'); setQuery(''); setExpandedId(null); setShowAllPlaces(false); }} style={[styles.areaTab, area === 'tehran-province' && styles.areaTabActive]}>
+                <Text style={[styles.areaTabTitle, area === 'tehran-province' && styles.areaTabTitleActive]}>سراسر استان تهران</Text>
+                <Text style={[styles.areaTabSub, area === 'tehran-province' && styles.areaTabSubActive]}>{toPersianDigits(tehranProvinceAttractions.length)} مقصد خارج شهر</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Pressable onPress={() => { setArea('shiraz'); setCategory('all'); setQuery(''); setExpandedId(null); setShowAllPlaces(false); }} style={[styles.areaTab, area === 'shiraz' && styles.areaTabActive]}>
+                <Text style={[styles.areaTabTitle, area === 'shiraz' && styles.areaTabTitleActive]}>شیراز</Text>
+                <Text style={[styles.areaTabSub, area === 'shiraz' && styles.areaTabSubActive]}>{toPersianDigits(shirazAttractions.length)} جاذبه شهری</Text>
+              </Pressable>
+              <Pressable onPress={() => { setArea('fars'); setCategory('all'); setQuery(''); setExpandedId(null); setShowAllPlaces(false); }} style={[styles.areaTab, area === 'fars' && styles.areaTabActive]}>
+                <Text style={[styles.areaTabTitle, area === 'fars' && styles.areaTabTitleActive]}>سراسر استان فارس</Text>
+                <Text style={[styles.areaTabSub, area === 'fars' && styles.areaTabSubActive]}>{toPersianDigits(farsAttractions.length)} مقصد خارج شهر</Text>
+              </Pressable>
+            </>
+          )}
         </View>
 
         <View style={styles.areaIntro}>
-          <View style={styles.areaIntroIcon}><Text>{area === 'shiraz' ? '🌸' : '🏺'}</Text></View>
+          <View style={styles.areaIntroIcon}><Text>{city.name === 'تهران' ? (area === 'tehran-city' ? '🏙️' : '⛰️') : area === 'shiraz' ? '🌸' : '🏺'}</Text></View>
           <View style={styles.areaIntroCopy}>
-            <Text style={styles.areaIntroTitle}>{area === 'shiraz' ? 'گشت‌وگذار در شهر شعر' : 'سفر در پهنه تاریخی فارس'}</Text>
+            <Text style={styles.areaIntroTitle}>{city.name === 'تهران' ? (area === 'tehran-city' ? 'گشت‌وگذار در شهر تهران' : 'سفر در استان تهران') : area === 'shiraz' ? 'گشت‌وگذار در شهر شعر' : 'سفر در پهنه تاریخی فارس'}</Text>
             <Text style={styles.areaIntroText}>
-              {area === 'shiraz'
-                ? 'باغ‌ها، آرامگاه‌ها، بازارها و بناهای دیدنی شیراز را یک‌جا پیدا کن.'
-                : 'از میراث هخامنشی تا طبیعت فارس؛ مقصدها را جداگانه مرور کن و بازدیدهایت را ثبت کن.'}
+              {city.name === 'تهران' ? (area === 'tehran-city' ? 'جاذبه‌های داخل شهر تهران، از کاخ‌ها و موزه‌ها تا بازارها و بوستان‌های پایتخت.' : 'جاذبه‌های شهرستان‌های استان تهران مانند ری، دماوند، شمیرانات و فیروزکوه.' ) : area === 'shiraz' ? 'باغ‌ها، آرامگاه‌ها، بازارها و بناهای دیدنی شیراز را یک‌جا پیدا کن.' : 'از میراث هخامنشی تا طبیعت فارس؛ مقصدها را جداگانه مرور کن و بازدیدهایت را ثبت کن.'}
             </Text>
           </View>
         </View>
@@ -330,7 +345,7 @@ export default function CityScreen() {
           <Pressable onPress={() => setFoodsOpen(!foodsOpen)} style={styles.collapsibleHeader}>
             <View style={styles.collapsibleIcon}><Text>🍊</Text></View>
             <View style={styles.collapsibleCopy}>
-              <Text style={styles.collapsibleTitle}>طعم‌های محلی شیراز</Text>
+              <Text style={styles.collapsibleTitle}>{city.name === 'تهران' ? 'خوراکی‌های محلی تهران' : 'طعم‌های محلی شیراز'}</Text>
               <Text style={styles.collapsibleSubtitle}>{toPersianDigits(city.localFoods.length)} خوراک و سوغات برای تجربه سفر</Text>
             </View>
             <Text style={styles.collapsibleChevron}>{foodsOpen ? '⌃' : '⌄'}</Text>
@@ -368,7 +383,7 @@ export default function CityScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerTitle}>ایرانگرد</Text>
-          <Text style={styles.footerText}>فارس را با چشم خودت کشف کن؛ خاطره‌ها را در گذرنامه‌ات نگه دار.</Text>
+          <Text style={styles.footerText}>{city.name === 'تهران' ? 'تهران را با چشم خودت کشف کن؛ خاطره‌ها را در گذرنامه‌ات نگه دار.' : 'فارس را با چشم خودت کشف کن؛ خاطره‌ها را در گذرنامه‌ات نگه دار.'}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
